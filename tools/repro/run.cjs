@@ -1,0 +1,23 @@
+const { chromium } = require("playwright");
+const { spawn } = require("node:child_process");
+(async () => {
+  const [,, baseUrl, mode, pyvenv, script] = process.argv;
+  const b = await chromium.launch({ headless: true, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--no-sandbox", "--autoplay-policy=no-user-gesture-required"] });
+  const ctx = await b.newContext({ permissions: ["microphone"] });
+  const page = await ctx.newPage();
+  const logs = [];
+  page.on("console", (m) => logs.push(`[${m.type()}] ${m.text().slice(0, 400)}`));
+  page.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}\n${(e.stack || "").split("\n").slice(0, 8).join("\n")}`));
+  await page.goto(`${baseUrl}/?mode=${mode}`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /start conversation/i }).click();
+  await page.waitForTimeout(2500);
+  const py = spawn(pyvenv, [script], { stdio: ["ignore", "pipe", "pipe"] });
+  py.stdout.on("data", (d) => process.stderr.write("[py] " + d));
+  py.stderr.on("data", (d) => process.stderr.write("[py!] " + d));
+  await new Promise((r) => py.on("exit", r));
+  await page.waitForTimeout(1500);
+  const body = await page.locator("body").innerText();
+  console.log("=== PAGE TEXT ===\n" + body.slice(0, 1500));
+  console.log("=== CONSOLE ===\n" + logs.filter((l) => !l.startsWith("[info]") && !l.startsWith("[debug]")).join("\n"));
+  await b.close();
+})().catch((e) => { console.error(e); process.exit(1); });

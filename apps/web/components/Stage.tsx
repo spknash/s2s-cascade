@@ -42,7 +42,9 @@ export default function Stage({ mode, onLeave }: { mode: Mode; onLeave: () => vo
   }, [raw, localParticipant?.identity]);
 
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ block: "nearest" }), [segments.length, segments[segments.length - 1]?.text]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "nearest" });
+  }, [segments.length, segments[segments.length - 1]?.text]);
 
   const elapsed = Math.max(clock, tally.elapsedSec);
   const cost = mode === "cascade" ? cascadeCost(elapsed, tally.llmTokens, tally.ttsChars) : liveCost(elapsed, tally.delegatedTurns);
